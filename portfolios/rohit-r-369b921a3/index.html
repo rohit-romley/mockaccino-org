@@ -1569,6 +1569,22 @@ main {
       if (navLinks.length > 0) {
         navLinks[0].click();
       }
+      
+      // Handle "Hire Me" button navigation
+      const hireButton = document.querySelector('[data-nav-to]');
+      if (hireButton) {
+        hireButton.addEventListener('click', function() {
+          const targetPage = this.getAttribute('data-nav-to');
+          
+          // Find and activate the corresponding nav link
+          navLinks.forEach(link => {
+            const linkText = link.textContent.trim().toLowerCase();
+            if (linkText === targetPage) {
+              link.click(); // Trigger the nav link click to activate the tab
+            }
+          });
+        });
+      }
     });
   </script>
   
