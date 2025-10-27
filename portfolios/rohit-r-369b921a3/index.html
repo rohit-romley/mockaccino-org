@@ -1853,6 +1853,120 @@ main {
         });
       }
     });
+
+    // Contact Form Initialization
+    (function() {
+      // Run init immediately if DOM is ready, otherwise wait for DOMContentLoaded
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', setupContactForm);
+      } else {
+        // DOM is already ready, run immediately
+        setupContactForm();
+      }
+      
+      function setupContactForm() {
+        const form = document.getElementById('contact-form');
+        if (!form) return;
+        
+        form.addEventListener('submit', async function(e) {
+          e.preventDefault();
+          
+          const formData = new FormData(form);
+          const name = formData.get('name');
+          const email = formData.get('email');
+          const message = formData.get('message');
+          
+          if (!name || !email || !message) {
+            alert('Please fill in all fields');
+            return;
+          }
+          
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            alert('Please enter a valid email address');
+            return;
+          }
+          
+          try {
+            // Extract portfolio owner ID from page metadata
+            const portfolioOwnerMeta = document.querySelector('meta[name="portfolio-owner-id"]');
+            const portfolioOwnerId = portfolioOwnerMeta?.getAttribute('content') || 'UNKNOWN';
+            
+            // Check if we're in Chrome extension context or deployed website
+            const isChromeExtension = !!window.chrome?.runtime?.id;
+            
+            let response;
+            
+            if (isChromeExtension) {
+              // Chrome Extension: Use background script to handle submission
+              response = await new Promise((resolve, reject) => {
+                window.chrome.runtime.sendMessage({
+                  action: 'SUBMIT_CONTACT_FORM',
+                  data: {
+                    portfolio_owner_id: portfolioOwnerId,
+                    sender_name: name,
+                    sender_email: email,
+                    message: message
+                  }
+                }, (response) => {
+                  if (window.chrome.runtime.lastError) {
+                    reject(window.chrome.runtime.lastError);
+                  } else {
+                    resolve(response);
+                  }
+                });
+              });
+            } else {
+              // Deployed Website: Call Supabase RPC directly
+              const supabaseUrl = 'https://cpjsbhmxsrtwvovkioeg.supabase.co';
+              const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwanNiaG14c3J0d3Zvdmtpb2VnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM5ODU2MTcsImV4cCI6MjA2OTU2MTYxN30.IXVYell7XGR0nKan_PvQffnFuzhljxIrVO8deBZhnFs';
+              
+              const apiResponse = await fetch(supabaseUrl + '/rest/v1/rpc/submit_contact_form', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'apikey': supabaseAnonKey,
+                  'Authorization': 'Bearer ' + supabaseAnonKey
+                },
+                body: JSON.stringify({
+                  p_portfolio_owner_id: portfolioOwnerId,
+                  p_sender_name: name,
+                  p_sender_email: email,
+                  p_message: message
+                })
+              });
+              
+              if (!apiResponse.ok) {
+                const errorText = await apiResponse.text();
+                throw new Error('Supabase API error: ' + errorText);
+              }
+              
+              const submissionId = await apiResponse.json();
+              response = { success: true, submissionId: submissionId };
+            }
+            
+            console.log('✅ Contact form submitted to database:', response);
+            
+            // Show success
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const originalHTML = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<span>✓ Message Sent!</span>';
+            submitBtn.style.background = 'linear-gradient(to bottom right, hsl(152, 69%, 31%), hsl(152, 69%, 41%))';
+            submitBtn.disabled = true;
+            
+            form.reset();
+            
+            setTimeout(function() {
+              submitBtn.innerHTML = originalHTML;
+              submitBtn.style.background = '';
+              submitBtn.disabled = false;
+            }, 3000);
+          } catch (error) {
+            console.error('Contact form error:', error);
+            alert('Failed to send message. Please try again.');
+          }
+        });
+      }
+    })();
   </script>
   
 </body>
