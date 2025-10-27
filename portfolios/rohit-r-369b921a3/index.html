@@ -1394,8 +1394,154 @@ main {
     </div>
   </main>
   
-  <!-- Minimal inline tab navigation for deployment -->
+  <!-- Inline particles and tab navigation for deployment -->
   <script>
+    // Portfolio Particles
+    (function() {
+      const canvas = document.getElementById('particles');
+      if (!canvas) return;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      let width = 0;
+      let height = 0;
+      let particles = [];
+
+      const config = {
+        dotRadius: 2,
+        speed: 0.25,
+        lineThreshold: 100,
+        dotColor: '#ffffff',
+        lineColor: '#ffffff',
+      };
+
+      function hexToRgba(hex, alpha) {
+        alpha = alpha || 1;
+        hex = hex.replace(/^#/, '');
+        if (hex.length === 3) {
+          hex = hex.split('').map(ch => ch + ch).join('');
+        }
+        const num = parseInt(hex, 16);
+        const r = (num >> 16) & 255;
+        const g = (num >> 8) & 255;
+        const b = num & 255;
+        return 'rgba(' + r + ', ' + g + ', ' + b + ', ' + alpha + ')';
+      }
+
+      function setSize() {
+        const rect = canvas.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+
+        width = rect.width;
+        height = rect.height;
+
+        if (width === 0 || height === 0) return;
+
+        canvas.width = width * dpr;
+        canvas.height = height * dpr;
+        ctx.scale(dpr, dpr);
+
+        const count = Math.floor((width * height) / 2000);
+        particles = [];
+
+        for (let i = 0; i < count; i++) {
+          particles.push({
+            id: i,
+            x: Math.random() * width,
+            y: Math.random() * height,
+            angle: Math.random() * 360,
+            connections: [],
+          });
+        }
+      }
+
+      function react(event) {
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+
+        particles.forEach(particle => {
+          const dist = Math.sqrt((x - particle.x) ** 2 + (y - particle.y) ** 2);
+          const inView =
+            particle.x >= config.dotRadius &&
+            particle.x <= width - config.dotRadius &&
+            particle.y >= config.dotRadius &&
+            particle.y <= height - config.dotRadius;
+
+          if (dist < 100 && inView) {
+            const dx = x - particle.x;
+            const dy = y - particle.y;
+            const newRad = Math.atan2(-dy, -dx);
+            particle.angle = (newRad * 360) / Math.PI;
+            particle.speed = 2;
+          }
+        });
+      }
+
+      function animate() {
+        ctx.clearRect(0, 0, width, height);
+        ctx.fillStyle = config.dotColor;
+
+        particles.forEach(particle => {
+          particle.connections = [];
+
+          particles.forEach(neighbor => {
+            if (
+              neighbor.id === particle.id ||
+              particle.connections.includes(neighbor.id) ||
+              neighbor.connections.includes(particle.id)
+            )
+              return;
+
+            const dist = Math.sqrt((particle.x - neighbor.x) ** 2 + (particle.y - neighbor.y) ** 2);
+            const t = 1 - dist / config.lineThreshold;
+            const alpha = Math.max(0, t) * 0.35;
+
+            if (dist <= config.lineThreshold) {
+              ctx.strokeStyle = hexToRgba(config.lineColor, alpha);
+              ctx.lineWidth = 1;
+              ctx.beginPath();
+              ctx.moveTo(particle.x, particle.y);
+              ctx.lineTo(neighbor.x, neighbor.y);
+              ctx.stroke();
+              particle.connections.push(neighbor.id);
+              neighbor.connections.push(particle.id);
+            }
+          });
+
+          ctx.beginPath();
+          ctx.arc(particle.x, particle.y, config.dotRadius, 0, 2 * Math.PI);
+          ctx.fill();
+
+          const rad = (particle.angle * Math.PI) / 360;
+          particle.x += Math.cos(rad) * (particle.speed || config.speed);
+          particle.y += Math.sin(rad) * (particle.speed || config.speed);
+
+          if (particle.speed && particle.speed > config.speed) {
+            particle.speed -= particle.speed * 0.01;
+          } else {
+            particle.speed = undefined;
+          }
+
+          if (particle.x <= config.dotRadius || particle.x >= width - config.dotRadius) {
+            particle.angle = 360 - particle.angle;
+          }
+          if (particle.y <= config.dotRadius || particle.y >= height - config.dotRadius) {
+            particle.angle = -particle.angle;
+          }
+        });
+
+        requestAnimationFrame(animate);
+      }
+
+      setSize();
+      window.addEventListener('resize', setSize);
+      window.addEventListener('mousemove', react);
+      animate();
+    })();
+
+    // Tab Navigation
     document.addEventListener('DOMContentLoaded', function() {
       const navLinks = document.querySelectorAll('[data-nav-link]');
       const pages = document.querySelectorAll('[data-page]');
@@ -1405,11 +1551,17 @@ main {
           const targetPage = this.textContent.trim().toLowerCase();
           
           navLinks.forEach(l => l.classList.remove('active'));
-          pages.forEach(p => p.style.display = 'none');
+          pages.forEach(p => {
+            p.classList.remove('active');
+            p.style.display = 'none';
+          });
           
           this.classList.add('active');
           const page = document.querySelector('[data-page="' + targetPage + '"]');
-          if (page) page.style.display = 'block';
+          if (page) {
+            page.classList.add('active');
+            page.style.display = 'block';
+          }
         });
       });
       
